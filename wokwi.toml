@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = 'build/atividadeu4c06atv1.uf2'
+elf = 'build/atividadeu4c06atv1.elf'
