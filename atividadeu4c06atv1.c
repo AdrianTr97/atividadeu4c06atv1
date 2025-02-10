@@ -37,17 +37,63 @@
 volatile int numero_exibido = 0; // Número atual exibido na matriz
 volatile bool estado_led_r = false; // Estado do LED vermelho
 
-// Alterna o LED vermelho entre ligar e desligar fazendo ele piscar continuamente 5 vezes por segundo. 
-void piscar_led() {
-    gpio_put(LED_R, estado_led_r);
-    estado_led_r = !estado_led_r;
-}
-
 // Prototipação da função,ou seja, uma declaração antecipada de que a função put_pixel existe e será definida mais tarde no código
 static inline void put_pixel(uint32_t pixel_grb);
 
 // Buffer da matriz 5x5
 bool led_buffer[NUM_PIXELS] = {0};
+
+// Cada número (0-9) é mapeado em uma matriz 5x5, caracteres em estilo digital
+const bool numeros_matriz_led [10][NUM_PIXELS] = {
+  {1,1,1,1,1, 1,0,0,0,1, 1,0,0,0,1, 1,0,0,0,1, 1,1,1,1,1}, // 0
+  {1,0,0,0,0, 0,0,0,0,1, 1,0,0,0,0, 0,0,0,0,1, 1,0,0,0,0}, // 1
+  {1,1,1,1,1, 1,0,0,0,0, 1,1,1,1,1, 0,0,0,0,1, 1,1,1,1,1}, // 2
+  {1,1,1,1,1, 0,0,0,0,1, 1,1,1,1,1, 0,0,0,0,1, 1,1,1,1,1}, // 3
+  {1,0,0,0,0, 0,0,0,0,1, 1,1,1,1,1, 1,0,0,0,1, 1,0,0,0,1}, // 4
+  {1,1,1,1,1, 0,0,0,0,1, 1,1,1,1,1, 1,0,0,0,0, 1,1,1,1,1}, // 5
+  {1,1,1,1,1, 1,0,0,0,1, 1,1,1,1,1, 1,0,0,0,0, 1,1,1,1,1}, // 6
+  {1,0,0,0,0, 0,0,0,0,1, 1,0,0,0,0, 0,0,0,0,1, 1,1,1,1,1}, // 7
+  {1,1,1,1,1, 1,0,0,0,1, 1,1,1,1,1, 1,0,0,0,1, 1,1,1,1,1}, // 8
+  {1,1,1,1,1, 0,0,0,0,1, 1,1,1,1,1, 1,0,0,0,1, 1,1,1,1,1}  // 9
+};
+
+// Atualiza o buffer (led_buffer[]) da matriz com o número exibido atual ( que pode ter sido incrementado ou decrementado).
+void atualizar_matriz() {
+  for (int i = 0; i < NUM_PIXELS; i++) {
+      led_buffer[i] = numeros_matriz_led[numero_exibido][i];
+  }
+}
+
+// Converte RGB em formato adequado para os LEDs WS2812.Envia os pixels para a matriz WS2812, exibindo o número na matriz usando a cor escolhida.
+void exibir_leds(uint8_t r, uint8_t g, uint8_t b) {
+  uint32_t color = ((uint32_t)r << 8) | ((uint32_t)g << 16) | (uint32_t)b;
+  for (int i = 0; i < NUM_PIXELS; i++) {
+      put_pixel(led_buffer[i] ? color : 0);
+  }
+}
+
+// Envia dados (cor) para a WS2812, usando PIO (Programmed I/O)
+static inline void put_pixel(uint32_t pixel_grb) {
+  pio_sm_put_blocking(pio0, 0, pixel_grb << 8u);
+}
+
+// Evita "debounce" verificando se passaram 200ms desde o último clique. Uma função de interrupção para os botões A e B e incrementa ou decrementa o numero exibido
+void gpio_callback(uint gpio, uint32_t events) {
+  static uint64_t ultimo_tempo_a = 0;
+  static uint64_t ultimo_tempo_b = 0;
+  uint64_t tempo_atual = time_us_64();
+
+  if (gpio == BTN_A && tempo_atual - ultimo_tempo_a > 200000) { // Debounce de 200ms
+      if (numero_exibido < 9) numero_exibido++;
+      atualizar_matriz();
+      ultimo_tempo_a = tempo_atual;
+  } 
+  else if (gpio == BTN_B && tempo_atual - ultimo_tempo_b > 200000) { // Debounce de 200ms
+      if (numero_exibido > 0) numero_exibido--;
+      atualizar_matriz();
+      ultimo_tempo_b = tempo_atual;
+  }
+}
 
 // funcao auxiliar para configuracoes
 void config_gpio() {
@@ -103,6 +149,9 @@ int main()
   bool cor = true;
   while (true)
   {
+    exibir_leds(255, 0, 0);  // Exibe o número em vermelho
+    sleep_ms(100);
+    
     cor = !cor;
     // Atualiza o conteúdo do display com animações
     ssd1306_fill(&ssd, !cor); // Limpa o display
