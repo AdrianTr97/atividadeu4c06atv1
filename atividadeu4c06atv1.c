@@ -32,8 +32,58 @@
 #define I2C_SDA 14
 #define I2C_SCL 15
 #define endereco 0x3C
+
+//Variáveis Globais
+volatile int numero_exibido = 0; // Número atual exibido na matriz
+volatile bool estado_led_r = false; // Estado do LED vermelho
+
+// Alterna o LED vermelho entre ligar e desligar fazendo ele piscar continuamente 5 vezes por segundo. 
+void piscar_led() {
+    gpio_put(LED_R, estado_led_r);
+    estado_led_r = !estado_led_r;
+}
+
+// Prototipação da função,ou seja, uma declaração antecipada de que a função put_pixel existe e será definida mais tarde no código
+static inline void put_pixel(uint32_t pixel_grb);
+
+// Buffer da matriz 5x5
+bool led_buffer[NUM_PIXELS] = {0};
+
+// funcao auxiliar para configuracoes
+void config_gpio() {
+  // Inicializa entrada/saída padrão para configuração dos LEDs RGB
+  gpio_init(LED_R);
+  gpio_set_dir(LED_R, GPIO_OUT);
+  gpio_put(LED_R, 0); // Garante que o LED começe apagado
+
+  // Configura o periférico PIO para controlar os LEDs WS2812.
+  PIO pio = pio0;
+  int sm = 0;
+  uint offset = pio_add_program(pio, &atividadeu4c04_program);
+  atividadeu4c04_program_init(pio, sm, offset, WS2812_PIN, 800000, IS_RGBW);
+
+  // Inicializando e configurando GPIOs dos botoes como entradas
+  gpio_init(BTN_A);
+  gpio_init(BTN_B);
+  gpio_set_dir(BTN_A, GPIO_IN);
+  gpio_set_dir(BTN_B, GPIO_IN);
+  gpio_pull_up(BTN_A);
+  gpio_pull_up(BTN_B);
+
+  // Ativa as interrupções nos botões para chamar gpio_callback()
+  gpio_set_irq_enabled_with_callback(BTN_A, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
+  gpio_set_irq_enabled_with_callback(BTN_B, GPIO_IRQ_EDGE_RISE, true, &gpio_callback);
+}
+
 int main()
 {
+  stdio_init_all();
+
+  // chama funcao auxiliar
+  config_gpio();
+
+  atualizar_matriz(); // Atualiza matriz com o primeiro número
+
   // I2C Initialisation. Using it at 400Khz.
   i2c_init(I2C_PORT, 400 * 1000);
 
