@@ -2,16 +2,36 @@
 //Estudo da biblioteca ssd1306 com PicoW na Placa BitDogLab.
 //Este programa escreve uma mensagem no display OLED.
 
+#include <stdio.h>
 #include <stdlib.h>
 #include "pico/stdlib.h"
+#include "hardware/pio.h"
+#include "hardware/clocks.h"
+#include "hardware/gpio.h"
+#include "atividadeu4c06atv1.pio.h"
+
 #include "hardware/i2c.h"
 #include "inc/ssd1306.h"
 #include "inc/font.h"
+
+#define IS_RGBW false
+//Define que os LEDs são RGB (e não RGBW)
+#define NUM_PIXELS 25
+//array com os 25 LEDs (matriz 5x5).
+#define WS2812_PIN 7
+//Matriz 5x5 de LEDs (endereçáveis) WS2812, conectada à GPIO 7.
+#define BTN_A 5
+#define BTN_B 6
+//Botão A conectado à GPIO 5. Botão B conectado à GPIO 6. 
+#define LED_R 13
+#define LED_B 12
+#define LED_G 11
+//LED RGB, com os pinos conectados às GPIOs (11, 12 e 13). Green ->11, Blue->12, Red-> 13
+
 #define I2C_PORT i2c1
 #define I2C_SDA 14
 #define I2C_SCL 15
 #define endereco 0x3C
-
 int main()
 {
   // I2C Initialisation. Using it at 400Khz.
